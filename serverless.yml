@@ -1,0 +1,64 @@
+service: sqsmessagehandler
+
+frameworkVersion: "2"
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  lambdaHashingVersion: 20201221
+
+  stage: dev
+  region: us-east-1
+  environment:
+    NOTIFICATIONS_TABLE: 'NOTIFICATIONS-${opt:stage, self:provider.stage}'
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:PutItem
+        - dynamodb:DeleteItem
+        - dynamodb:GetItem
+        - dynamodb:UpdateItem
+      Resource: 'arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self: provider.environment.NOTIFICATIONS_TABLE}'
+
+functions:
+  showMessage:
+    handler: handler.showMessage
+    events:
+      - http: GET notifications/{notificationsId}
+  listAllMessages:
+    handler: handler.listAllMessages
+    events:
+      - http: GET notifications
+  storeMessage:
+    handler: handler.storeMessage
+    events:
+      - http: POST notifications
+  updateMessage:
+    handler: handler.updateMessage
+    events:
+      - http: PUT notifications/{notificationsId}
+  destroyMessage:
+    handler: handler.destroyMessage
+    events:
+      - http: DELETE notifications/{notificationsId}
+
+resources:
+  Resources:
+    NotificationsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.NOTIFICATIONS_TABLE}
+        AttributeDefinitions:
+          - AttributeName: notification_id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: notification_id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+
+plugins:
+  - serverless-offline
